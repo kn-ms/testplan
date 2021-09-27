@@ -1,0 +1,18 @@
+name: "Build Release"
+
+on:
+  workflow_run:
+    workflows: ["Cut new version"]
+    types: [completed]
+jobs:
+  build-release-package:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ./.github/actions/build-package
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"        
+        prerelease: false
+        files: |
+          dist/testplan-*-py3-none-any.whl
