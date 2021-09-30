@@ -10,7 +10,7 @@
     exclude = '''(/(vendor|node_modules)/)'''
 
 [tool.bumpver]
-    current_version = "21.9.28"
+    current_version = "21.9.29"
     version_pattern = "YY.MM.INC0"
     commit_message = "bump version {old_version} -> {new_version}"
     commit = true
