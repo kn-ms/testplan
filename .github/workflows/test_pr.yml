@@ -23,6 +23,7 @@ jobs:
             tests/*
             scripts/*
             releaseherald/releaseherald/*
+            .github/workflows/test_pr.yml
             pytest.ini
             pyproject.toml
             setup.py
