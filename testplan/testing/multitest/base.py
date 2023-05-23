@@ -20,6 +20,13 @@ from testplan.common.utils import (
 )
 from testplan.common.utils.composer import compose_contexts
 from testplan.common.utils.path import change_directory
+from testplan.event_stream import TESTPLAN_EVENTS
+from testplan.event_stream.events import (
+    TestLevel,
+    TestProgressStartEvent,
+    TestProgressDoneEvent,
+)
+from testplan.event_stream.testplan_topics import PROGRESS
 from testplan.report import (
     ReportCategories,
     RuntimeStatus,
@@ -418,6 +425,14 @@ class MultiTest(testing_base.Test):
         testsuites = self.test_context
         report = self.report
 
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressStartEvent(
+                level=TestLevel.TEST,
+                name=self.name,
+                num_tasks=sum(len(testcases) for _, testcases in testsuites),
+            ),
+        )
         with report.timer.record("run"):
             if _need_threadpool(testsuites):
                 self._thread_pool = concurrent.futures.ThreadPoolExecutor(
@@ -448,7 +463,13 @@ class MultiTest(testing_base.Test):
                 self._thread_pool = None
 
         report.runtime_status = RuntimeStatus.FINISHED
-
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressDoneEvent(
+                level=TestLevel.TEST,
+                name=self.name,
+            ),
+        )
         return report
 
     def run_testcases_iter(self, testsuite_pattern="*", testcase_pattern="*"):
@@ -762,6 +783,14 @@ class MultiTest(testing_base.Test):
         _check_testcases(testcases)
         testsuite_report = self._new_testsuite_report(testsuite)
 
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressStartEvent(
+                level=TestLevel.TEST_SUITE,
+                name=testsuite.name,
+                num_tasks=len(testcases),
+            ),
+        )
         with testsuite_report.timer.record("run"):
             with self.watcher.save_covered_lines_to(testsuite_report):
                 setup_report = self._setup_testsuite(testsuite)
@@ -813,6 +842,13 @@ class MultiTest(testing_base.Test):
             testsuite_report.xfail(testsuite.__xfail__["strict"])
 
         testsuite_report.runtime_status = RuntimeStatus.FINISHED
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressDoneEvent(
+                level=TestLevel.TEST_SUITE,
+                name=testsuite.name,
+            ),
+        )
 
         return testsuite_report
 
@@ -1088,6 +1124,13 @@ class MultiTest(testing_base.Test):
                 self.log_testcase_status(testcase_report)
             return testcase_report
 
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressStartEvent(
+                level=TestLevel.TEST_CASE,
+                name=testcase.name,
+            ),
+        )
         with testcase_report.timer.record("run"):
             with compose_contexts(
                 testcase_report.logged_exceptions(),
@@ -1141,7 +1184,13 @@ class MultiTest(testing_base.Test):
 
         testcase_report.pass_if_empty()
         testcase_report.runtime_status = RuntimeStatus.FINISHED
-
+        TESTPLAN_EVENTS.publish(
+            PROGRESS,
+            TestProgressDoneEvent(
+                level=TestLevel.TEST_CASE,
+                name=testcase.name,
+            ),
+        )
         if self.get_stdout_style(testcase_report.passed).display_testcase:
             self.log_testcase_status(testcase_report)
 

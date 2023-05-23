@@ -14,6 +14,8 @@ import os
 import sys
 import logging
 
+from rich.logging import RichHandler
+
 from testplan.common.utils.strings import Color, uuid4
 from testplan.report import Status
 
@@ -146,7 +148,8 @@ def _initial_setup():
     stdout_formatter = logging.Formatter("%(message)s")
     stdout_handler.setFormatter(stdout_formatter)
     stdout_handler.setLevel(USER_INFO)
-    root_logger.addHandler(stdout_handler)
+    rh = RichHandler(level=USER_INFO, show_path=False)
+    root_logger.addHandler(rh)
     root_logger.propagate = False
 
     return root_logger, stdout_handler
