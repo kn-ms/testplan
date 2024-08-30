@@ -1,7 +1,7 @@
 import os
 import time
 
-__version__ = "24.8.0"
+__version__ = "24.8.1"
 
 dev_build = int(os.environ.get("DEV_BUILD", "0"))
 dev_suffix = f"dev{int(time.time())}" if dev_build else ""
