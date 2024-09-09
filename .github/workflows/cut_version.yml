@@ -32,7 +32,7 @@ jobs:
         run: |
           git checkout -b bump_version_tmp
           bumpver update
-          `bumpver show --env`
+          eval `bumpver show --environ`
           NEW_BRANCH="bump_version/${CURRENT_VERSION}"
           git branch -m bump_version_tmp ${NEW_BRANCH}
           git push origin
