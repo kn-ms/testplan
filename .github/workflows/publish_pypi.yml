@@ -1,0 +1,84 @@
+name: Cut new version
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  get-new-version:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        with:
+          python-version: '3.11'
+
+      - run: pip install --upgrade pip
+      - run: pip install bumpver
+      - run: pip install ./releaseherald
+      
+      - run: bumpver show --env > new-version.txt
+      - run: releaseherald generate --latest --no-update -t news.rst
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: new-version
+          path: |
+            new-version.txt
+            news.rst
+
+  build:
+    runs-on: ubuntu-latest
+    needs: get-new-version
+
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - run: git pull origin
+      - uses: ./.github/actions/build-package
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: package
+          path: dist/
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [get-new-version, build]
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          sparse-checkout: |
+            .github
+      - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: new-version
+      - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: package
+          path: dist/
+
+      - name: Get Version
+        id: get_version
+        run: |
+          eval $(cat new-version.txt)
+          echo "new_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+
+      - uses: ./.github/actions/create-release
+        with:
+          tag_name: ${{ steps.get_version.outputs.new_version }}
+          package: dist/testplan-${{ steps.get_version.outputs.new_version }}-py3-none-any.whl
+          news: news.rst
+
+      - name: Publish to Test PyPI
+        if: ${{github.ref_name == 'test_pypi'}}
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+      - name: Publish to PyPI
+        if: ${{github.ref_name != 'test_pypi'}}
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
